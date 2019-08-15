@@ -1,0 +1,42 @@
+=== Current dict-based actions ===
+
+---Entity Actions---
+{"message": message_string}
+{"move": (entity, dx, dy)}
+{"move_astar": (entity, target)}
+{"melee": (entity, target)}
+{"wait": int_time}
+{"spawn_etheric": (entity, dest_x, dest_y)}
+{"despawn_etheric": entity}
+{"possess": (entity, target)}
+{"unpossess": (entity, dest_x, dest_y)}
+{"pickup": True}
+{"item_added": item}
+{"use_item": item}
+{"consumed": (True|False)}
+{"drop_item": item}
+{"item_dropped": item}
+{"targeting": item_entity}
+{"cancel_target": True}
+{"dead": entity}
+{"xp": [entity, xp]}
+{"level_up": [entity, ("hp"|"str"|"def")]}
+{"equip": [entity, item]}
+{"equipped": [entity, item]}
+{"dequipped": [entity, item]}
+
+---Player Actions---
+{"exit": True}
+{"fullscreen": True}
+{"mousemotion": (x, y)}
+{"msg_up": True}
+{"msg_down": True}
+{"show_inventory": True}
+{"drop_inventory": True}
+{"take_stairs": True}
+{"show_character_screen": True}
+{"omnivis": True}
+{"switch_char": True}
+{"map_gen": True}
+{"graph_gen": True}
+{"test": True}

@@ -4,8 +4,6 @@ Scripts
 pyvenv.cfg
 .spyproject
 __pycache__
-algorithms.txt
-todo.txt
 savegame.bak
 savegame.dat
 savegame.dir

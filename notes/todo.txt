@@ -1,0 +1,155 @@
+
+Current dev plan:
+- cleanup to prep for possession mechanic overhaul
+    x "astral" or "aetherial" component on Entities
+    x adjust rendering to vary based on presence of "aetherial" component instead of checking for entity 0
+    x remove all checks for entity 0
+    - remove all checks for entity ident component
+    - remove all entity ident component function arguments
+    - get rid of entity ident component
+    x make "soul" attribute into component w/ character, color
+        x adjust rendering to use these instead of generating soul char/color on the fly
+        x adjust entity setup to use these instead of int on creation
+- possession mechanic overhaul basics
+    x add "Gnosis" component to indicate ability to spawn possessor
+    x add "possessor" component to hold current possessing entity
+    x change possession mechanic to spawn possessor if entity w/ requisite component issues "possess" command
+        x use existing mechanic if entity has "possessor" component
+        x despawn possessor if repossessing its originator
+    x remove "player" entity in game setup, make "vip" entity player and give them "shaman" (or w/e) component
+    x add attributes to "Gnosis" component to be inherited by possessor entity (range, duration, fov)
+    x make "etheric" attribute into component
+    x add attributes to "Etheric" component to affect what it do
+        x range: how far Etheric Body can travel from originator
+        x duration: how long Etheric lasts until despawn + control return to originator
+    !!! design questions
+        ? how to design system to support quickly changing possession mechanic specifics
+            ? duration = time spent out of body; limited, or infinite?
+            ? duration = time spent possessing something; time-limited only, struggle against soul, something else?
+            
+    - add logic to handle duration limits of possessor
+        - add PlayerAction AI class that gets player input when run
+        - add PossessorAction AI class
+            - store existing AI as "previous AI"
+            - count down from duration
+            - run PlayerAction AI
+            - when countdown complete
+                - swap "previous AI" back in to current entity
+                - swap "PlayerAction AI" in to etheric body owner
+                - generate "despawn_etheric" action
+        - remove controlled_entity stuff, deal with possession by swapping AIs around
+    - add logic to handle move_range limits of possessor
+    - add cooldown attribute to "Gnosis" component (time between when possessor returns and when can respawn)
+    - add logic to handle cooldown of possession spawning ability
+
+- basic monster ai overhaul
+    - add faction component (own faction, faction relationship dict)
+        - faction components shared among entities (no need for unique component for each NPC)
+    - set player faction to "player"
+    - set orc and troll faction to "greenskin"
+    - add rat NPC, set faction to "critter"
+    - faction relationships
+        - player: "default": neutral
+        - greenskin: "default": neutral, "player": enemy
+        - critter: "default": neutral
+        - (more factions to be added in future content expansion e.g. human, undead, lizardfolk, etc)
+    - add BasicFactionAI ai subclass
+        - attack enemy faction, ignore neutrals and friendlies
+        - wander randomly when no enemies in sight
+- event messaging system
+    - update game event system to inform entities what is happening
+- more advanced monster ai overhaul
+    - store list of seen entities + opinion towards (enemy, neutral, friendly) based on faction
+    - switch entities to "enemy" opinion if they attack a "friendly" in fov
+    - pursue enemies to last known position if they leave fov
+
+
+Other:
+    - possession mechanic switcheroo (see also Part 11 Extra)
+    - Factions, Friend/Enemy/Neutral list on basic entity AI
+        - chase and attack Enemies, mark anyone that attacks a Friend as Enemy
+    - entity.dead attribute, so I can tell what's actually dead vs never was alive?
+    - clean up input -> input parsing -> action handling chain
+        - separate "debug" or "dev" parser / handler ?
+    - doors and keys
+    - neutral NPCs (e.g. rats)
+
+Previous extra goals missed:
+
+- Part 3 extra:
+    - more graph statistics
+    - find, store, display all paths between nodes in graph
+        - edge exclusive
+        - no overlap in edges
+        - hyperedge exclusive
+    - find, store, display all cycles in graph
+        - edge exclusive
+        - no overlap in edges
+        - hyperedge exclusive
+
+- Part 6 extra:
+    - clock entity to test Time System, ui modularity (clock display)
+
+- Part 7 extra:
+    - bundle ui panel attributes together into ui_panel class
+    - rewrite render functions to use console height, width instead of passing variables in
+    - remove unnecessary variables from all calls to render functions
+    - rewrite graph display functions to work with scrolling map
+
+Part 8 extra:
+    - modify item + inventory code to be usable by any entity
+    - unfuck control of inventory stuff
+    - move item use to action handler / item component instead of inventory (?)
+    - entity attribute -> component refactor as in todo comments in Entity class
+    - drop inventory on death
+    - make corpses pick-up-able
+
+Part 9 extra:
+    - change "actions" from dict to deque of action objects
+        - action objects: list of [action, arg, arg, arg]
+    - clean up the mess that "targeting" has made of handle_entity_actions()
+        - check item in action_parser and if it's a targeting item kick it back
+            until it comes in with a list of coordinates, then only pass the
+            "use_item" action along with targeting coordinates as a dict?
+    - targeting from list of entities in FOV
+    - item arguments stored as separate dicts per type?
+
+Part 10 extra:
+    - more cleanup of function arguments
+    - more rearranging of main game loop
+    - split map setting structs into different module
+    
+Part 11 Extra
+    - stairs that go up to previous levels, stairs that go to arbitrary levels
+        - stairs store destination
+        - when taking stairs, store current level, check to see if destination
+            already stored: if it is, load it
+                            otherwise, generate new level and load that
+    - rewrite to have player start as normal entity, possession command spawn a new entity
+    - new possessor entity has stats:
+        - limited range it can travel from player entity
+        - limited time it can possess other entities before being kicked out
+        - limited time it can exist before despawning and returning control to player entity
+        - cooldown time before it can be re-used
+        - limited fov range
+    - xp increases increase possesor stats
+    - xp granted based on possessor kills ???
+    - soul value based on monster xp
+
+Part 12 Extra
+    - make map/entity generation more data-driven
+        - more expansive level definitions (map type, distributions, etc in dict)
+        - monster and item definitions in dicts instead of if/elif/then blocks
+            - pass level definition to place_entities, iterate over set/list/dict to do work
+
+Part 13 Extra
+    - split inventory and equipment
+        - separate equipment display
+    - more equipment slots, items
+    - flexible equipment slots (some entities more, less, or different slots)
+    - set up messages to only broadcast to entities in fov
+        put message (data, not actual log message) in queue with origin location
+        scan all entities and forward them message if msg location in fov
+        each entity processes message contents
+        if entity is controlled_entity, push message to message log
+            e.g. "thing happened" -> "Orc equips broadsword!"
