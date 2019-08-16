@@ -22,6 +22,20 @@ Current dev plan:
     x add attributes to "Etheric" component to affect what it do
         x range: how far Etheric Body can travel from originator
         x duration: how long Etheric lasts until despawn + control return to originator
+
+- side track to changing action system to queue
+    x list of existing actions
+    x action object class
+    x action type enum
+    - action deque in engine.py
+    - change input parser to produce action objects
+    - change ai classes to produce action objects
+    - change action handlers to handle and produce action objects
+    - change inventory, item_functions, fighter to produce action objects
+
+? add more generic spawn_entity, despawn_entity actions and replace spawn_, despawn_etheric?
+
+- back to possession mechanic overhaul basics
     !!! design questions
         ? how to design system to support quickly changing possession mechanic specifics
             ? duration = time spent out of body; limited, or infinite?

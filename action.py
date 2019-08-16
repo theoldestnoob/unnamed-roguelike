@@ -5,15 +5,12 @@ Created on Wed Aug 14 22:06:21 2019
 @author: theoldestnoob
 """
 
+from collections import namedtuple
 from enum import Enum, auto
 
 
-class Action():
-    def __init__(self, ident, source=None, target=None, args=None):
-        self.ident = ident
-        self.source = source
-        self.target = target
-        self.args = args
+Action = namedtuple("Action", "ident, source, target, args",
+                    defaults=(None, None, None, None))
 
 
 class Actions(Enum):
