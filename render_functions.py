@@ -42,10 +42,10 @@ def mouseover_names(console, game_map, mouse_x, mouse_y, entities, curr_entity,
                  or omnivision)):
         names = []
         for entity in entities:
-            if (entity.x == mouse_x and entity.y == mouse_y
-                    and entity is not entities[0]
-                    and curr_entity is not entities[0]):
-                names.append(entity.name)
+            if (entity.x == mouse_x and entity.y == mouse_y):
+                if (entity.etheric and curr_entity.etheric
+                        or not entity.etheric and not curr_entity.etheric):
+                    names.append(entity.name)
         namelist = ", ".join(names)
         return namelist
 
@@ -101,6 +101,7 @@ def render_all(con, panel_ui, panel_map, entities, game_map, curr_entity,
     # anything we're mousing over
     namelist = mouseover_names(panel_map, game_map, mouse_x, mouse_y, entities,
                                curr_entity, omnivision)
+    print(f"namelist: {namelist}")
     if namelist:
         panel_ui.print(1, 0, namelist, fg=tcod.light_gray, alignment=tcod.LEFT)
 

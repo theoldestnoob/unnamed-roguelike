@@ -10,7 +10,7 @@ Current dev plan:
     x make "soul" attribute into component w/ character, color
         x adjust rendering to use these instead of generating soul char/color on the fly
         x adjust entity setup to use these instead of int on creation
-- possession mechanic overhaul basics
+x possession mechanic overhaul basics
     x add "Gnosis" component to indicate ability to spawn possessor
     x add "possessor" component to hold current possessing entity
     x change possession mechanic to spawn possessor if entity w/ requisite component issues "possess" command
@@ -23,15 +23,15 @@ Current dev plan:
         x range: how far Etheric Body can travel from originator
         x duration: how long Etheric lasts until despawn + control return to originator
 
-- side track to changing action system to queue
+x side track to changing action system to queue
     x list of existing actions
     x action object class
     x action type enum
-    - action deque in engine.py
-    - change input parser to produce action objects
-    - change ai classes to produce action objects
-    - change action handlers to handle and produce action objects
-    - change inventory, item_functions, fighter to produce action objects
+    x action deque in engine.py
+    x change input parser to produce action objects
+    x change ai classes to produce action objects
+    x change action handlers to handle and produce action objects
+    x change inventory, item_functions, fighter to produce action objects
 
 ? add more generic spawn_entity, despawn_entity actions and replace spawn_, despawn_etheric?
 

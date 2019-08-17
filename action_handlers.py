@@ -320,7 +320,7 @@ def handle_entity_actions(actions, in_handle, entities, timeq, game_map,
 def handle_player_actions(actions, in_handle, entities, game_map, console,
                           panel_ui, panel_map, curr_entity, controlled_entity,
                           player, omnivision, message_log,
-                          mouse_x, mouse_y, timeq, game_state, prev_state,
+                          timeq, game_state, prev_state,
                           constants, debug_f):
     """ Process out of turn and debug actions, things only the player can do"""
     # pull constants

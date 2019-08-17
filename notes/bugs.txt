@@ -1,0 +1,4 @@
+
+- Etheric Body entity sticks around in last position when possessing entities
+    - appears on mouseover namelist
+    - blocks unpossessing in that direction

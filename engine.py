@@ -146,7 +146,6 @@ def play_game(constants, root_console, panel_ui, panel_map, debug_f,
             render_update = False
 
         # run an entity's turn
-        results = []
 
         # if it's the controlled entity's turn
         if curr_entity is controlled_entity:
@@ -177,7 +176,7 @@ def play_game(constants, root_console, panel_ui, panel_map, debug_f,
                                           panel_ui, panel_map,
                                           curr_entity, controlled_entity,
                                           player, omnivision,
-                                          message_log, mouse_x, mouse_y,
+                                          message_log,
                                           timeq, game_state, prev_state,
                                           constants, debug_f)
             (next_turn, curr_entity, controlled_entity, entities, player,
@@ -197,7 +196,7 @@ def play_game(constants, root_console, panel_ui, panel_map, debug_f,
         if debug_f and actions:
             print(f"{curr_entity.name} - {curr_entity}: {actions}")
 
-        # process turn actions, modify game state, and get results
+        # process turn actions, modify game state
         act_r = handle_entity_actions(actions, in_handle, entities, timeq,
                                       game_map, root_console, message_log,
                                       controlled_entity, player, game_state,
@@ -208,15 +207,12 @@ def play_game(constants, root_console, panel_ui, panel_map, debug_f,
 
         render_update = render_update_p or render_update_e
 
-        # process turn results
+        # check if we want to exit
         if want_exit:
             save_game(player, entities, controlled_entity, curr_entity,
                       game_state, prev_state, message_log, game_map, timeq,
                       next_turn, render_update, targeting_item)
             return True
-
-        if debug_f and results:
-            print(results)
 
         # put current entity back in time queue and get the next one
         if next_turn:
