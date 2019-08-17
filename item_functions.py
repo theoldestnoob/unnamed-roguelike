@@ -8,6 +8,7 @@ Created on Sat Jul 20 20:52:50 2019
 import tcod
 
 from game_messages import Message
+from action import Action, Actions
 from components.ai import ConfusedMonster
 
 
@@ -19,11 +20,15 @@ def heal(*args, **kwargs):
 
     if entity.fighter.hp == entity.fighter.max_hp:
         msg = Message("You are already at full health", tcod.yellow)
-        results.append({"consumed": False, "message": msg})
+        act_msg = Action(Actions.MESSAGE, source=entity, args=msg)
+        results.append(act_msg)
     else:
         msg = Message("Your wounds start to feel better!", tcod.green)
+        act_msg = Action(Actions.MESSAGE, source=entity, args=msg)
+        results.append(act_msg)
         entity.fighter.heal(amount)
-        results.append({"consumed": True, "message": msg})
+        results.append(Action(Actions.CONSUMED))
+        results.append(Action(Actions.ITEM_USED))
 
     return results
 
@@ -52,11 +57,15 @@ def cast_lightning(*args, **kwargs):
         msg_str = (f"A lightning bolt strikes the {target.name} "
                    f"with a loud thunder! The damage is {damage}.")
         msg = Message(msg_str, tcod.white)
-        results.append({"consumed": True, "message": msg})
+        act_msg = Action(Actions.MESSAGE, source=target, args=msg)
+        results.append(act_msg)
+        results.append(Action(Actions.CONSUMED))
+        results.append(Action(Actions.ITEM_USED))
         results.extend(target.fighter.take_damage(damage))
     else:
         msg = Message("No enemy is close enough to strike.", tcod.red)
-        results.append({"consumed": False, "message": msg})
+        act_msg = Action(Actions.MESSAGE, source=caster, args=msg)
+        results.append(act_msg)
 
     return results
 
@@ -74,19 +83,25 @@ def cast_fireball(*args, **kwargs):
     if not caster.fov_map.fov[target_y][target_x]:
         msg_str = f"You cannot target a tile outside of your field of view."
         msg = Message(msg_str, tcod.yellow)
-        results.append({"consumed": False, "message": msg})
+        act_msg = Action(Actions.MESSAGE, source=caster, args=msg)
+        results.append(act_msg)
     else:
         msg_str = (f"The fireball explodes, "
                    f"burning everything within {radius} tiles!")
         msg = Message(msg_str, tcod.orange)
-        results.append({"consumed": True, "message": msg})
+        # TODO: need to source this from the actual target of the fireball
+        act_msg = Action(Actions.MESSAGE, source=caster, args=msg)
+        results.append(act_msg)
+        results.append(Action(Actions.CONSUMED))
+        results.append(Action(Actions.ITEM_USED))
         for entity in entities:
             if (entity.fighter and not entity.etheric
                     and entity.distance(target_x, target_y) <= radius):
                 msg_str = (f"The {entity.name} gets burned "
                            f"for {damage} hit points.")
                 msg = Message(msg_str, tcod.orange)
-                results.append({"message": msg})
+                act_msg = Action(Actions.MESSAGE, source=entity, args=msg)
+                results.append(act_msg)
                 results.extend(entity.fighter.take_damage(damage))
 
     return results
@@ -103,7 +118,8 @@ def cast_confuse(*args, **kwargs):
     if not caster.fov_map.fov[target_y][target_x]:
         msg_str = f"You cannot target a tile outside of your field of view."
         msg = Message(msg_str, tcod.yellow)
-        results.append({"consumed": False, "message": msg})
+        act_msg = Action(Actions.MESSAGE, source=caster, args=msg)
+        results.append(act_msg)
 
     for entity in entities:
         if entity.ai and entity.x == target_x and entity.y == target_y:
@@ -113,11 +129,15 @@ def cast_confuse(*args, **kwargs):
             msg_str = (f"The eyes of the {entity.name} look vacant, "
                        f"as he starts to stumble around!")
             msg = Message(msg_str, tcod.light_green)
-            results.append({"consumed": True, "message": msg})
+            act_msg = Action(Actions.MESSAGE, source=entity, args=msg)
+            results.append(act_msg)
+            results.append(Action(Actions.CONSUMED))
+            results.append(Action(Actions.ITEM_USED))
             break
     else:
         msg_str = "There is no targetable enemy at that location."
         msg = Message(msg_str, tcod.yellow)
-        results.append({"consumed": False, "message": msg})
+        act_msg = Action(Actions.MESSAGE, source=caster, args=msg)
+        results.append(act_msg)
 
     return results

@@ -22,6 +22,7 @@ from components.inventory import Inventory
 from game_messages import Message
 from death_functions import kill_entity
 from game_states import GameStates
+from action import Action, Actions
 
 
 # TODO: man I have to pass a lot of stuff in and out of these guys
@@ -37,72 +38,55 @@ def handle_entity_actions(actions, in_handle, entities, timeq, game_map,
     prev_state = prev_state
     targeting_item = targeting_item
 
-    # TODO: rewrite to use object features: while len(action) > 0: action = action.popleft()
-    for action in actions:
-        # turn actions
-        message = action.get("message")
-        move = action.get("move")
-        move_astar = action.get("move_astar")
-        melee = action.get("melee")
-        wait = action.get("wait")
-        spawn_etheric = action.get("spawn_etheric")
-        despawn_etheric = action.get("despawn_etheric")
-        possess = action.get("possess")
-        unpossess = action.get("unpossess")
-        pickup = action.get("pickup")
-        item_added = action.get("item_added")
-        use_item = action.get("use_item")
-        drop_item = action.get("drop_item")
-        item_dropped = action.get("item_dropped")
-        targeting = action.get("targeting")
-        cancel_target = action.get("cancel_target")
-        dead = action.get("dead")
-        xp = action.get("xp")
-        level_up = action.get("level_up")
-        equip = action.get("equip")
+    while len(actions) > 0:
+        action = actions.popleft()
 
-        if message:  # {"message": message_string}
+        # (Actions.MESSAGE, source, args=msg)
+        if action.ident == Actions.MESSAGE:
+            message = action.args
             render_update = True
             message_log.add_message(message)
 
-        if move:  # {"move": (entity, dx, dy)}
+        # (Actions.MOVE, source, target, args=(dx, dy))
+        elif action.ident == Actions.MOVE:
             action_cost = 100
             next_turn = True
-            entity, dx, dy = move
+            entity = action.source
+            dx, dy = action.args
             # don't let entities move out of the map's boundaries
             if not (entity.x + dx < 0 or entity.y + dy < 0
                     or entity.x + dx >= game_map.width
                     or entity.y + dy >= game_map.height):
                 entity.move(dx, dy)
 
-        if move_astar:  # {"move_astar": (entity, target)}
+        # (Actons.MOVE_ASTAR, source, target)
+        elif action.ident == Actions.MOVE_ASTAR:
             action_cost = 100
             next_turn = True
-            entity, target = move_astar
-            entity.move_astar(target, entities, game_map)
+            action.source.move_astar(action.target, entities, game_map)
 
-        if melee:  # {"melee": (entity, target)}
+        # (Actions.MELEE, source, target)
+        elif action.ident == Actions.MELEE:
             action_cost = 100
             next_turn = True
-            entity, target = melee
-            melee_results = entity.fighter.attack(target)
-            for action in melee_results:
-                xp = action.get("xp")
-                if xp:
-                    action["xp"] = [entity, xp[1]]
-            actions.extend(melee_results)
+            melee_results = action.source.fighter.attack(action.target)
+            actions.extendleft(reversed(melee_results))
 
-        if wait:  # {"wait": int_time}
-            action_cost = wait
+        # (Actions.WAIT, source, target, args=time)
+        elif action.ident == Actions.WAIT:
+            action_cost = action.args
             next_turn = True
 
-        if spawn_etheric:  # {"spawn_etheric": (entity, dest_x, dest_y)}
+        # (Actions.SPAWN_ETHERIC, source, args=(dest_x, dest_y))
+        elif action.ident == Actions.SPAWN_ETHERIC:
             action_cost = 100
             next_turn = True
             render_update = True
-            spawner, dest_x, dest_y = spawn_etheric
-            result_str = f"You manifest your etheric body!"
-            message_log.add_message(Message(result_str, tcod.light_gray))
+            spawner = action.source
+            dest_x, dest_y = action.args
+            msg = Message("You manifest your etheric body!", tcod.light_gray)
+            act_msg = Action(Actions.MESSAGE, source=spawner, args=msg)
+            actions.appendleft(act_msg)
             etheric_soul = Soul(spawner.gnosis.char, spawner.gnosis.color)
             etheric_body = Etheric(move_range=spawner.gnosis.move_range,
                                    duration=spawner.gnosis.duration)
@@ -127,127 +111,166 @@ def handle_entity_actions(actions, in_handle, entities, timeq, game_map,
                 timeq.append(possessor)
             controlled_entity = possessor
 
-        if despawn_etheric:  # {"despawn_etheric": entity}
+        # (Actions.DESPAWN_ETHERIC, source, target)
+        elif action.ident == Actions.DESPAWN_ETHERIC:
             action_cost = 50
             next_turn = True
             render_update = True
-            entity = despawn_etheric
+            entity = action.target
             owner = entity.owner
             controlled_entity = owner
             entities.remove(entity)
             entity.speed = 0
 
-        if possess:  # {"possess": (entity, target)}
+        # (Actions.POSSESS, source, target)
+        elif action.ident == Actions.POSSESS:
             action_cost = 100
             next_turn = True
             render_update = True
-            possessor, target = possess
-            result_str = f"You possess the {target.name}!"
-            message_log.add_message(Message(result_str, tcod.light_gray))
+            possessor = action.source
+            target = action.target
+            msg = (Message(f"You possess the {target.name}!", tcod.light_gray))
+            act_msg = Action(Actions.MESSAGE, source=action.source, args=msg)
+            actions.appendleft(act_msg)
             target.possessor = possessor
             controlled_entity = target
 
-        if unpossess:  # {"unpossess": (entity, dest_x, dest_y)}
+        # (Actions.UNPOSSESS, source, target, args=(dest_x, dest_y))
+        elif action.ident == Actions.UNPOSSESS:
             action_cost = 100
             next_turn = True
             render_update = True
-            entity, dest_x, dest_y = unpossess
-            result_str = f"You stop possessing the {controlled_entity.name}!"
-            message_log.add_message(Message(result_str, tcod.light_gray))
+            entity = action.target
+            dest_x, dest_y = action.args
+            msg_str = f"You stop possessing the {controlled_entity.name}!"
+            msg = Message(msg_str, tcod.light_gray)
+            act_msg = Action(Actions.MESSAGE, source=action.target, args=msg)
+            actions.appendleft(act_msg)
             controlled_entity = entity.possessor
             controlled_entity.x = dest_x
             controlled_entity.y = dest_y
             controlled_entity.fov_recompute = True
             entity.possessor = None
 
-        if pickup and controlled_entity.inventory:
-            next_turn = True
+        # Action(Actions.PICKUP, source, target)
+        elif action.ident == Actions.PICKUP and action.source.inventory:
             render_update = True
+            actor = action.source
             for entity in entities:
                 if (entity.item
-                        and entity.x == controlled_entity.x
-                        and entity.y == controlled_entity.y):
-                    results = controlled_entity.inventory.add_item(entity)
-                    actions.extend(results)
+                        and entity.x == actor.x
+                        and entity.y == actor.y):
+                    results = actor.inventory.add_item(entity)
+                    actions.extendleft(reversed(results))
                     break
             else:
-                msg_str = "There is nothing here to pick up."
-                message_log.add_message(Message(msg_str, tcod.yellow))
+                msg = Message("There is nothing here to pick up.", tcod.yellow)
+                act_msg = Action(Actions.MESSAGE, source=actor, args=msg)
+                actions.appendleft(act_msg)
 
-        if item_added:
-            entities.remove(item_added)
+        # (Actions.ITEM_ADDED, source, args=item)
+        elif action.ident == Actions.ITEM_ADDED:
+            next_turn = True
+            action_cost = 50
+            entities.remove(action.args)
 
-        if use_item:
+        # (Actions.USE_ITEM, source, target, args=item)
+        elif action.ident == Actions.USE_ITEM:
             render_update = True
-            use_results = controlled_entity.inventory.use(use_item,
-                                                          entities=entities)
-            if any([u_r for u_r in use_results if u_r.get("consumed")]):
-                action_cost = 50
-                next_turn = True
-                # TODO: hack to clear targeting after item use, don't like it
-                if use_item is targeting_item:
-                    targeting_item = None
-                    game_state = prev_state
+            user = action.source
+            use_item = action.args
+            use_results = user.inventory.use(use_item, entities=entities)
             # TODO: hack to clear targeting after item use, don't like it
-            else:
+            item_consumed = False
+            for use_result in reversed(use_results):
+                if use_result.ident == Actions.CONSUMED:
+                    item_consumed = True
+                actions.appendleft(use_result)
+            if not item_consumed:
                 use_item.item.target_x = None
                 use_item.item.target_y = None
-            actions.extend(use_results)
+            elif use_item is targeting_item:
+                targeting_item = None
+                game_state = prev_state
 
-        if drop_item:
+        # (Actions.ITEM_USED, source=self.owner, target=item_entity)
+        elif action.ident == Actions.ITEM_USED:
+            next_turn = True
+            action_cost = 100
+
+        # (Actions.DROP_ITEM, source, target, args=item)
+        elif action.ident == Actions.DROP_ITEM:
             render_update = True
+            drop_item = action.args
             drop_results = controlled_entity.inventory.drop(drop_item)
-            if any([d_r for d_r in drop_results if d_r.get("item_dropped")]):
-                action_cost = 50
-                next_turn = True
-            actions.extend(drop_results)
+            actions.extendleft(reversed(drop_results))
 
-        if item_dropped:
+        # TODO: the way this works is gonna fuck up dropping items on death
+        # (Actions.ITEM_DROPPED, source=self.owner, target=item)
+        elif action.ident == Actions.ITEM_DROPPED:
+            item_dropped = action.target
+            action_cost = 50
+            next_turn = True
             entities.append(item_dropped)
 
         # TODO: There has to be a better way to handle targeting than this
-        if targeting:
+        # (Actions.TARGETING, source=self.owner, args=item_entity)
+        elif action.ident == Actions.TARGETING:
             render_update = True
             next_turn = False
             prev_state = GameStates.NORMAL_TURN
             game_state = GameStates.TARGETING
-            targeting_item = targeting
-            message_log.add_message(targeting_item.item.targeting_message)
+            targeting_item = action.args
+            msg = targeting_item.item.targeting_message
+            act_msg = Action(Actions.MESSAGE, source=action.source, args=msg)
+            actions.appendleft(act_msg)
 
-        if cancel_target:
+        # (Actions.CANCEL_TARGET, source)
+        elif action.ident == Actions.CANCEL_TARGET:
             game_state = prev_state
             render_update = True
             next_turn = False
-            message_log.add_message(Message("Targeting cancelled",
-                                            tcod.light_cyan))
+            msg = (Message("Targeting cancelled", tcod.light_cyan))
+            act_msg = Action(Actions.MESSAGE, source=action.source, args=msg)
+            actions.appendleft(act_msg)
 
-        if dead:  # {"dead": entity}
+        # (Actions.DEAD, source=self.owner)
+        elif action.ident == Actions.DEAD:
             render_update = True
-            if dead == controlled_entity:
-                controlled_entity = entities[0]
-                controlled_entity.x = dead.x
-                controlled_entity.y = dead.y
-                controlled_entity.fov_recompute = True
-            message = kill_entity(dead)
-            message_log.add_message(message)
+            dead = action.source
+            msg = kill_entity(dead)
+            act_msg = Action(Actions.MESSAGE, source=dead, args=msg)
+            actions.appendleft(act_msg)
+            if dead == player:
+                msg = Message("Oh no you lose!", tcod.red)
+                act_msg = Action(Actions.MESSAGE, source=dead, args=msg)
+                actions.appendleft(act_msg)
+                game_state = GameStates.FAIL_STATE
 
-        if xp:  # {"xp": [entity, xp]}
-            entity, xp_gain = xp
+        # Action(Actions.XP, source=xp_source, target=xp_target, args=xp_args)
+        elif action.ident == Actions.XP:
+            entity = action.target
+            xp_gain = action.args
             if entity is not None and entity.level:
                 level_from_xp = entity.level.add_xp(xp_gain)
                 msg_str = f"{entity.name} gains {xp_gain} experience points."
                 msg = Message(msg_str, tcod.white)
-                message_log.add_message(msg)
+                act_msg = Action(Actions.MESSAGE, source=entity, args=msg)
+                actions.appendleft(act_msg)
                 if level_from_xp:
                     msg_str = (f"{entity.name} grows stronger!  They have "
                                f"reached level {entity.level.current_level}!")
-                    message_log.add_message(Message(msg_str, tcod.yellow))
+                    msg = Message(msg_str, tcod.yellow)
+                    act_msg = Action(Actions.MESSAGE, source=entity, args=msg)
+                    actions.appendleft(act_msg)
                     if entity is controlled_entity:
                         prev_state = game_state
                         game_state = GameStates.LEVEL_UP
 
-        if level_up:  # {"level_up": [entity, ("hp"|"str"|"def")]}
-            entity, choice = level_up
+        # (Actions.LEVEL_UP, source, target, args=choice)
+        elif action.ident == Actions.LEVEL_UP:
+            entity = action.source
+            choice = action.args
             if choice == "hp":
                 entity.fighter.base_max_hp += 20
                 entity.fighter.hp += 20
@@ -259,27 +282,36 @@ def handle_entity_actions(actions, in_handle, entities, timeq, game_map,
             render_update = True
             next_turn = False
 
-        if equip:  # {"equip": [entity, item]}
-            entity, item = equip
+        # Action(Actions.EQUIP, source=self.owner, target=item_entity)
+        elif action.ident == Actions.EQUIP:
+            entity = action.source
+            item = action.target
             equip_results = entity.equipment.toggle_equip(item)
+            actions.extendleft(reversed(equip_results))
 
-            for equip_result in equip_results:
-                # {"equipped": [entity, item]}
-                # {"dequipped": [entity, item]}
-                equipped = equip_result.get("equipped")
-                dequipped = equip_result.get("dequipped")
-                if dequipped:
-                    entity, item = dequipped
-                    msg_str = f"{entity.name} dequipped the {item.name}"
-                    message_log.add_message(Message(msg_str, tcod.white))
-                if equipped:
-                    entity, item = equipped
-                    msg_str = f"{entity.name} equipped the {item.name}"
-                    message_log.add_message(Message(msg_str, tcod.white))
-                if dequipped or equipped:
-                    next_turn = True
-                    render_update = True
-                    action_cost = 50
+        # (Actions.DEQUIPPED, source=self.owner, target=equippable_entity)
+        elif action.ident == Actions.DEQUIPPED:
+            next_turn = True
+            render_update = True
+            action_cost = 50
+            entity = action.source
+            item = action.target
+            msg_str = f"{entity.name} dequipped the {item.name}"
+            msg = (Message(msg_str, tcod.white))
+            act_msg = Action(Actions.MESSAGE, source=entity, args=msg)
+            actions.appendleft(act_msg)
+
+        # (Actions.EQUIPPED, source=self.owner, target=equippable_entity)
+        elif action.ident == Actions.EQUIPPED:
+            next_turn = True
+            render_update = True
+            action_cost = 50
+            entity = action.source
+            item = action.target
+            msg_str = f"{entity.name} equipped the {item.name}"
+            msg = (Message(msg_str, tcod.white))
+            act_msg = Action(Actions.MESSAGE, source=entity, args=msg)
+            actions.appendleft(act_msg)
 
     return (action_cost, next_turn, controlled_entity, render_update,
             game_state, prev_state, targeting_item)
@@ -290,6 +322,7 @@ def handle_player_actions(actions, in_handle, entities, game_map, console,
                           player, omnivision, message_log,
                           mouse_x, mouse_y, timeq, game_state, prev_state,
                           constants, debug_f):
+    """ Process out of turn and debug actions, things only the player can do"""
     # pull constants
     mapset = constants["mapset"]
     fov_radius = constants["fov_radius"]
@@ -300,32 +333,20 @@ def handle_player_actions(actions, in_handle, entities, game_map, console,
     curr_entity = curr_entity
     controlled_entity = controlled_entity
     player = player
+    actions_in = actions
+    actions_out = deque()
     entities = entities
     omnivision = omnivision
     timeq = timeq
     want_exit = False
     render_update = False
 
-    for action in actions:
+    while len(actions_in) > 0:
+        action = actions_in.popleft()
+
         # out of turn actions
-        want_exit = action.get("exit")
-        fullscreen = action.get("fullscreen")
-        mousemotion = action.get("mousemotion")
-        msg_up = action.get("msg_up")
-        msg_down = action.get("msg_down")
-        show_inventory = action.get("show_inventory")
-        drop_inventory = action.get("drop_inventory")
-        take_stairs = action.get("take_stairs")
-        show_character_screen = action.get("show_character_screen")
-
-        # debug actions
-        omnivis = action.get("omnivis")
-        switch_char = action.get("switch_char")
-        map_gen = action.get("map_gen")
-        graph_gen = action.get("graph_gen")
-        test = action.get("test")
-
-        if want_exit:  # {"exit": True}
+        # (Actions.EXIT)
+        if action.ident == Actions.EXIT:
             if game_state in (GameStates.SHOW_INVENTORY,
                               GameStates.DROP_INVENTORY,
                               GameStates.CHARACTER_SCREEN):
@@ -335,7 +356,8 @@ def handle_player_actions(actions, in_handle, entities, game_map, console,
             else:
                 want_exit = True
 
-        if fullscreen:  # {"fullscreen": True}
+        # (Actions.FULLSCREEN)
+        elif action.ident == Actions.FULLSCREEN:
             next_turn = False
             render_update = True
             tcod.console_set_fullscreen(not tcod.console_is_fullscreen())
@@ -343,33 +365,40 @@ def handle_player_actions(actions, in_handle, entities, game_map, console,
         # TODO: I'm not super happy about how this works
         #       but not sure how to elegantly tag render_update when the list
         #       of entities being moused over changes
-        if mousemotion:  # {"mousemotion": (x, y)}
+        # (Actions.MOUSEMOTION, args=(x, y))
+        elif action.ident == Actions.MOUSEMOTION:
             render_update = True
 
-        if msg_up:
+        # (Actions.MSG_UP, source)
+        elif action.ident == Actions.MSG_UP:
             if message_log.bottom < message_log.length - message_log.height:
                 message_log.scroll(1)
                 render_update = True
 
-        if msg_down:
+        # (Actions.MSG_DOWN, source)
+        elif action.ident == Actions.MSG_DOWN:
             if message_log.bottom > 0:
                 message_log.scroll(-1)
                 render_update = True
 
-        if show_inventory:
+        # (Actions.SHOW_INVENTORY, source, target)
+        elif action.ident == Actions.SHOW_INVENTORY:
             render_update = True
             next_turn = False
             prev_state = game_state
             game_state = GameStates.SHOW_INVENTORY
 
-        if drop_inventory:
+        # (Actions.DROP_INVENTORY, source, target)
+        elif action.ident == Actions.DROP_INVENTORY:
             render_update = True
             next_turn = False
             prev_state = game_state
             game_state = GameStates.DROP_INVENTORY
 
-        if take_stairs:
+        # (Actions.TAKE_STAIRS, source, target)
+        elif action.ident == Actions.TAKE_STAIRS:
             for entity in entities:
+                # TODO: this will be buggy a f, sort out the various player + entity things
                 if (entity.stairs and entity.x == controlled_entity.x
                         and entity.y == controlled_entity.y):
                     game_map.dlevel += 1
@@ -390,20 +419,25 @@ def handle_player_actions(actions, in_handle, entities, game_map, console,
                     break
             else:
                 msg = Message("There are no stairs here.", tcod.yellow)
-                message_log.add_message(msg)
+                act_msg = Action(Actions.MESSAGE, source=curr_entity, args=msg)
+                actions_out.append(act_msg)
 
-        if show_character_screen:
+        # (Actions.SHOW_CHARACTER_SCREEN, source, target)
+        elif action.ident == Actions.SHOW_CHARACTER_SCREEN:
             render_update = True
             next_turn = False
             prev_state = game_state
             game_state = GameStates.CHARACTER_SCREEN
 
-        if omnivis:  # {"omnivis": True}
+        # debug actions
+        # (Actions.OMNIVIS)
+        elif action.ident == Actions.OMNIVIS:
             next_turn = False
             render_update = True
             omnivision = not omnivision
 
-        if switch_char:  # {"switch_char": True}
+        # (Actions.SWITCH_CHAR, source)
+        elif action.ident == Actions.SWITCH_CHAR:
             next_turn = False
             render_update = True
             index = controlled_entity.ident + 1
@@ -419,7 +453,8 @@ def handle_player_actions(actions, in_handle, entities, game_map, console,
                 else:
                     controlled_entity = entities[index]
 
-        if map_gen:  # {"map_gen": True}
+        # Action(Actions.MAP_GEN)
+        elif action.ident == Actions.MAP_GEN:
             next_turn = True
             render_update = True
             game_map.seed = randint(0, 99999)
@@ -452,15 +487,21 @@ def handle_player_actions(actions, in_handle, entities, game_map, console,
                 recompute_fov(game_map, entity, fov_radius, fov_light_walls,
                               fov_algorithm)
 
-        if graph_gen:  # {"graph_gen": True}
+        # (Actions.GRAPH_GEN)
+        elif action.ident == Actions.GRAPH_GEN:
             game_map.make_graph()
 
-        if test:  # {"test": True}
+        # (Actions.TEST)
+        elif action.ident == Actions.TEST:
             pass
 
+        # not an action we're handling in this function
+        else:
+            actions_out.append(action)
+
     return (next_turn, curr_entity, controlled_entity, entities, player,
-            timeq, omnivision, render_update, want_exit, game_state,
-            prev_state)
+            actions_out, timeq, omnivision, render_update, want_exit,
+            game_state, prev_state)
 
 
 ''' Bunch of stuff pulled out of handle_player_actions to make it less awful:

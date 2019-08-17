@@ -26,6 +26,7 @@ class Actions(Enum):
     PICKUP = auto()
     ITEM_ADDED = auto()
     USE_ITEM = auto()
+    ITEM_USED = auto()
     CONSUMED = auto()
     DROP_ITEM = auto()
     ITEM_DROPPED = auto()

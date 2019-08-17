@@ -40,3 +40,56 @@
 {"map_gen": True}
 {"graph_gen": True}
 {"test": True}
+
+
+
+=== New namedtuple-based actions ===
+
+Action(Actions.MESSAGE, source=curr_entity, args=msg)
+Action(Actions.MOVE, source=curr_entity, target=curr_entity, args=(dx, dy))
+Action(Actions.MELEE, source=curr_entity, target=target)
+Action(Actions.WAIT, source=curr_entity, target=curr_entity, args=100)
+Action(Actions.SPAWN_ETHERIC, source=curr_entity, args=(dest_x, dest_y))
+Action(Actions.DESPAWN_ETHERIC, source=curr_entity, target=curr_entity)
+Action(Actions.POSSESS, source=curr_entity, target=target)
+Action(Actions.UNPOSSESS, source=curr_entity, target=curr_entity, args=(dest_x, dest_y))
+Action(Actions.USE_ITEM, source=curr_entity, target=curr_entity, args=item)
+Action(Actions.DROP_ITEM, source=curr_entity, target=curr_entity, args=item)
+Action(Actions.SHOW_INVENTORY, source=curr_entity, target=curr_entity)
+Action(Actions.DROP_INVENTORY, source=curr_entity, target=curr_entity)
+Action(Actions.LEVEL_UP, source=curr_entity, target=curr_entity, args=choice)
+Action(Actions.SHOW_CHARACTER_SCREEN, source=curr_entity, target=curr_entity)
+Action(Actions.EXIT)
+Action(Actions.FULLSCREEN)
+Action(Actions.OMNIVIS)
+Action(Actions.SWITCH_CHAR, source=curr_entity)
+Action(Actions.MAP_GEN)
+Action(Actions.GRAPH_GEN)
+Action(Actions.TEST)
+Action(Actions.MSG_UP, source=curr_entity)
+Action(Actions.MSG_DOWN, source=curr_entity)
+Action(Actions.PICKUP, source=curr_entity, target=curr_entity)
+Action(Action(Actions.CANCEL_TARGET, source=curr_entity))
+Action(Actions.TAKE_STAIRS, source=curr_entity, target=curr_entity)
+Action(Actions.MOUSEMOTION, args=(x, y))
+
+Action(Actions.DEAD, source=self.owner)
+Action(Actions.XP, source=self.owner, args=self.xp) <--- returned from fighter.attack
+Action(Actions.XP, source=xp_source, target=xp_target, args=xp_args) <--- adjusted to include xp target
+
+Action(Actions.ITEM_ADDED, source=self.owner, args=item)
+
+Action(Actions.EQUIP, source=self.owner, target=item_entity)
+Action(Actions.DEQUIPPED, source=self.owner, target=equippable_entity)
+Action(Actions.EQUIPPED, source=self.owner, target=equippable_entity)
+								 
+Action(Actions.TARGETING, source=self.owner, args=item_entity)
+
+Action(Actions.CONSUMED) <--- returned from item_function
+Action(Actions.CONSUMED, source=self.owner, target=item_entity) <--- adjusted to include user, item
+Action(Actions.ITEM_USED, source=self.owner, target=item_entity)
+
+Action(Actions.ITEM_DROPPED, source=self.owner, target=item)
+
+
+

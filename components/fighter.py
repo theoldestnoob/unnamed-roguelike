@@ -8,6 +8,7 @@ Created on Tue Jul  9 21:11:17 2019
 import tcod
 
 from game_messages import Message
+from action import Action, Actions
 
 
 class Fighter:
@@ -48,7 +49,10 @@ class Fighter:
         self.hp -= amount
 
         if self.hp <= 0:
-            results.append({"dead": self.owner, "xp": [None, self.xp]})
+            act_dead = Action(Actions.DEAD, source=self.owner)
+            act_xp = Action(Actions.XP, source=self.owner, args=self.xp)
+            results.append(act_dead)
+            results.append(act_xp)
 
         return results
 
@@ -65,11 +69,25 @@ class Fighter:
         if damage > 0:
             atk_str = (f"{self.owner.name} attacks {target.name} "
                        f"for {damage} hit points.")
-            results.append({"message": Message(atk_str, tcod.white)})
-            results.extend(target.fighter.take_damage(damage))
+            msg = Message(atk_str, tcod.white)
+            act_msg = Action(Actions.MESSAGE, source=self.owner, args=msg)
+            results.append(act_msg)
+            atk_results = target.fighter.take_damage(damage)
+            for atk_result in atk_results:
+                if atk_result.ident == Actions.XP:
+                    xp_args = atk_result.args
+                    xp_source = atk_result.source
+                    xp_target = self.owner
+                    act_xp = Action(Actions.XP, source=xp_source,
+                                    target=xp_target, args=xp_args)
+                    results.append(act_xp)
+                else:
+                    results.append(atk_result)
         else:
             atk_str = (f"{self.owner.name} attacks {target.name} "
                        f"but does no damage.")
-            results.append({"message": Message(atk_str, tcod.white)})
+            msg = Message(atk_str, tcod.white)
+            act_msg = Action(Actions.MESSAGE, source=self.owner, args=msg)
+            results.append(act_msg)
 
         return results

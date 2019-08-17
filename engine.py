@@ -19,6 +19,7 @@ from fov_functions import recompute_fov
 from action_handlers import handle_entity_actions, handle_player_actions
 from game_messages import Message
 from menus import main_menu, message_box
+from collections import deque
 
 
 def main():
@@ -120,6 +121,10 @@ def play_game(constants, root_console, panel_ui, panel_map, debug_f,
               next_turn, render_update, targeting_item):
     # always update rendering upon entry
     render_update = True
+
+    # set up empty action queue
+    actions = deque()
+
     # main game loop
     while True:
 
@@ -141,7 +146,6 @@ def play_game(constants, root_console, panel_ui, panel_map, debug_f,
             render_update = False
 
         # run an entity's turn
-        actions = {}
         results = []
 
         # if it's the controlled entity's turn
@@ -158,11 +162,14 @@ def play_game(constants, root_console, panel_ui, panel_map, debug_f,
             if debug_f and user_in:
                 print(user_in)
 
-            input_r = parse_input(panel_map, in_handle, user_in,
+            input_r = parse_input(panel_map, in_handle, user_in, actions,
                                   curr_entity,
                                   entities, game_map, mouse_x, mouse_y,
                                   game_state, prev_state, targeting_item)
-            actions, mouse_x, mouse_y = input_r
+            mouse_x, mouse_y = input_r
+
+            if debug_f and actions:
+                print(f"after parse_input: {actions}")
 
             # process any player-only actions
             act_r = handle_player_actions(actions, in_handle, entities,
@@ -174,13 +181,18 @@ def play_game(constants, root_console, panel_ui, panel_map, debug_f,
                                           timeq, game_state, prev_state,
                                           constants, debug_f)
             (next_turn, curr_entity, controlled_entity, entities, player,
-             timeq, omnivision, render_update_p, want_exit,
+             actions, timeq, omnivision, render_update_p, want_exit,
              game_state, prev_state) = act_r
+
+            if debug_f and actions:
+                print(f"after handle_player_actions: {actions}")
 
         # if it's not the controlled entity's turn
         elif curr_entity.ai:
             # get the actions the entity wants to take
-            actions = curr_entity.ai.take_turn(player, game_map, entities)
+            actions.extend(
+                    curr_entity.ai.take_turn(player, game_map, entities)
+                    )
 
         if debug_f and actions:
             print(f"{curr_entity.name} - {curr_entity}: {actions}")
@@ -205,13 +217,6 @@ def play_game(constants, root_console, panel_ui, panel_map, debug_f,
 
         if debug_f and results:
             print(results)
-
-        # TODO: check for and handle failure states
-        if ((not player.fighter or player.fighter.hp <= 0)
-                and game_state != GameStates.FAIL_STATE):
-            message_log.add_message(Message("Oh no you lose!", tcod.red))
-            game_state = GameStates.FAIL_STATE
-            render_update = True
 
         # put current entity back in time queue and get the next one
         if next_turn:

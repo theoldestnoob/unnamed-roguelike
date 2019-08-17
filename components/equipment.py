@@ -6,6 +6,7 @@ Created on Wed Jul 31 21:05:32 2019
 """
 
 from equipment_slots import EquipmentSlots
+from action import Action, Actions
 
 
 # TODO: rewrite to use list of equipment slots, properties iterate over list
@@ -58,30 +59,36 @@ class Equipment:
             # if you have the item equipped, dequip it
             if self.main_hand == equippable_entity:
                 self.main_hand = None
-                results.append({"dequipped": [self.owner,
-                                              equippable_entity]})
+                act_deqp = Action(Actions.DEQUIPPED, source=self.owner,
+                                  target=equippable_entity)
+                results.append(act_deqp)
             # otherwise, dequip what you have and equip the item
             else:
                 if self.main_hand:
-                    results.append({"dequipped": [self.owner,
-                                                  self.main_hand]})
+                    act_deqp = Action(Actions.DEQUIPPED, source=self.owner,
+                                      target=self.main_hand)
+                    results.append(act_deqp)
                 self.main_hand = equippable_entity
-                results.append({"equipped": [self.owner,
-                                             equippable_entity]})
+                act_eqp = Action(Actions.EQUIPPED, source=self.owner,
+                                 target=equippable_entity)
+                results.append(act_eqp)
 
         elif slot == EquipmentSlots.OFF_HAND:
             # if you have the item equipped, dequip it
             if self.off_hand == equippable_entity:
                 self.off_hand = None
-                results.append({"dequipped": [self.owner,
-                                              equippable_entity]})
+                act_deqp = Action(Actions.DEQUIPPED, source=self.owner,
+                                  target=equippable_entity)
+                results.append(act_deqp)
             # otherwise, dequip what you have and equip the item
             else:
                 if self.off_hand:
-                    results.append({"dequipped": [self.owner,
-                                                  self.off_hand]})
+                    act_deqp = Action(Actions.DEQUIPPED, source=self.owner,
+                                      target=self.off_hand)
+                    results.append(act_deqp)
                 self.off_hand = equippable_entity
-                results.append({"equipped": [self.owner,
-                                             equippable_entity]})
+                act_eqp = Action(Actions.EQUIPPED, source=self.owner,
+                                 target=equippable_entity)
+                results.append(act_eqp)
 
         return results

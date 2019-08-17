@@ -12,12 +12,13 @@ from entity import get_souled_entities_at_location
 from game_messages import Message
 from game_states import GameStates
 from render_functions import get_map_offset, get_console_offset
+from action import Action, Actions
 
 
-def parse_input(console, in_handle, user_in, curr_entity, entities, game_map,
-                mouse_x, mouse_y, game_state, prev_state, targeting_item):
+def parse_input(console, in_handle, user_in, actions, curr_entity, entities,
+                game_map, mouse_x, mouse_y, game_state, prev_state,
+                targeting_item):
     # set up stuff
-    actions = []
     mouse_x = mouse_x
     mouse_y = mouse_y
 
@@ -29,9 +30,6 @@ def parse_input(console, in_handle, user_in, curr_entity, entities, game_map,
     fullscreen = user_in.get("fullscreen")
     map_gen = user_in.get("map_gen")
     graph_gen = user_in.get("graph_gen")
-    show_vertices = user_in.get("show_vertices")
-    show_hyperedges = user_in.get("show_hyperedges")
-    show_edges = user_in.get("show_edges")
     test = user_in.get("test")
     omnivis = user_in.get("omnivis")
     switch_char = user_in.get("switch_char")
@@ -60,9 +58,13 @@ def parse_input(console, in_handle, user_in, curr_entity, entities, game_map,
             if target:
                 act_msg = (f"A shudder runs through {target.name} "
                            f"as you press against its soul!")
-                actions.append({"message": Message(act_msg, tcod.light_gray)})
+                msg = Message(act_msg, tcod.light_gray)
+                act_msg = Action(Actions.MESSAGE, source=curr_entity, args=msg)
+                actions.append(act_msg)
             else:
-                actions.append({"move": (curr_entity, dx, dy)})
+                act_move = Action(Actions.MOVE, source=curr_entity,
+                                  target=curr_entity, args=(dx, dy))
+                actions.append(act_move)
         else:
             if not game_map.is_blocked(dest_x, dest_y):
                 target = get_blocking_entities_at_location(entities,
@@ -70,14 +72,21 @@ def parse_input(console, in_handle, user_in, curr_entity, entities, game_map,
                                                            dest_y)
                 if target:
                     if curr_entity.fighter:
-                        actions.append({"melee": (curr_entity, target)})
+                        act_melee = Action(Actions.MELEE, source=curr_entity,
+                                           target=target)
+                        actions.append(act_melee)
                 else:
-                    actions.append({"move": (curr_entity, dx, dy)})
+                    act_move = Action(Actions.MOVE, source=curr_entity,
+                                      target=curr_entity, args=(dx, dy))
+                    actions.append(act_move)
 
     if wait:
-        actions.append({"message":
-                        Message(f"{curr_entity.name} waits.", tcod.white)})
-        actions.append({"wait": 100})
+        msg = Message(f"{curr_entity.name} waits.", tcod.white)
+        act_msg = Action(Actions.MESSAGE, source=curr_entity, args=msg)
+        actions.append(act_msg)
+        act_wait = Action(Actions.WAIT, source=curr_entity, target=curr_entity,
+                          args=100)
+        actions.append(act_wait)
         # TODO: potential future waits of variable length
         #       or normalized to entity speed
 
@@ -97,48 +106,71 @@ def parse_input(console, in_handle, user_in, curr_entity, entities, game_map,
             if target:
                 msg_str = (f"Your etheric body cannot manifest "
                            f"in space occupied by another soul!")
-                actions.append({"message": Message(msg_str, tcod.light_gray)})
+                msg = (msg_str, tcod.light_gray)
+                act_msg = Action(Actions.MESSAGE, source=curr_entity, args=msg)
+                actions.append(act_msg)
             else:
-                actions.append({"spawn_etheric": (curr_entity,
-                                                  dest_x, dest_y)})
+                act_spawn = Action(Actions.SPAWN_ETHERIC, source=curr_entity,
+                                   args=(dest_x, dest_y))
+                actions.append(act_spawn)
         # if currently etheric, we're not possessing anyone
         elif curr_entity.etheric:
             if target:
                 if target is curr_entity.owner:
-                    actions.append({"despawn_etheric": curr_entity})
+                    act_despawn = Action(Actions.DESPAWN_ETHERIC,
+                                         source=curr_entity,
+                                         target=curr_entity)
+                    actions.append(act_despawn)
                 else:
-                    actions.append({"possess": (curr_entity, target)})
+                    act_possess = Action(Actions.POSSESS, source=curr_entity,
+                                         target=target)
+                    actions.append(act_possess)
             else:
                 msg_str = "You cannot possess that with no soul!"
-                actions.append({"message": Message(msg_str, tcod.light_gray)})
+                msg = Message(msg_str, tcod.light_gray)
+                act_msg = Action(Actions.MESSAGE, source=curr_entity, args=msg)
+                actions.append(act_msg)
         # otherwise, we are possessing someone and want to leave
         else:
             if target:
                 msg_str = (f"Your etheric body cannot manifest "
                            f"in space occupied by another soul!")
-                actions.append({"message": Message(msg_str, tcod.light_gray)})
+                msg = Message(msg_str, tcod.light_gray)
+                act_msg = Action(Actions.MESSAGE, source=curr_entity, args=msg)
+                actions.append(act_msg)
             else:
-                actions.append({"unpossess": (curr_entity, dest_x, dest_y)})
+                act_unpossess = Action(Actions.UNPOSSESS, source=curr_entity,
+                                       target=curr_entity,
+                                       args=(dest_x, dest_y))
+                actions.append(act_unpossess)
 
     if (inventory_index is not None
             and game_state == GameStates.SHOW_INVENTORY
             and prev_state != GameStates.FAIL_STATE):
         if inventory_index < len(curr_entity.inventory.items):
             item = curr_entity.inventory.items[inventory_index]
-            actions.append({"use_item": item})
+            act_use = Action(Actions.USE_ITEM, source=curr_entity,
+                             target=curr_entity, args=item)
+            actions.append(act_use)
 
     if (inventory_index is not None
             and game_state == GameStates.DROP_INVENTORY
             and prev_state != GameStates.FAIL_STATE):
         if inventory_index < len(curr_entity.inventory.items):
             item = curr_entity.inventory.items[inventory_index]
-            actions.append({"drop_item": item})
+            act_drop = Action(Actions.DROP_ITEM, source=curr_entity,
+                              target=curr_entity, args=item)
+            actions.append(act_drop)
 
     if curr_entity.inventory and show_inventory:
-        actions.append(user_in)
+        act_show_inv = Action(Actions.SHOW_INVENTORY, source=curr_entity,
+                              target=curr_entity)
+        actions.append(act_show_inv)
 
     if curr_entity.inventory and drop_inventory:
-        actions.append(user_in)
+        act_drop_inv = Action(Actions.DROP_INVENTORY, source=curr_entity,
+                              target=curr_entity)
+        actions.append(act_drop_inv)
 
     if in_target and game_state == GameStates.TARGETING:
         x, y = in_target
@@ -150,31 +182,65 @@ def parse_input(console, in_handle, user_in, curr_entity, entities, game_map,
         y += y_off
         targeting_item.item.target_x = x
         targeting_item.item.target_y = y
-        actions.append({"use_item": targeting_item})
+        act_use = Action(Actions.USE_ITEM, source=curr_entity,
+                         target=curr_entity, args=targeting_item)
+        actions.append(act_use)
 
     if level_up:
         print(level_up)
         choice = level_up
-        actions.append({"level_up": (curr_entity, choice)})
+        act_levelup = Action(Actions.LEVEL_UP, source=curr_entity,
+                             target=curr_entity, args=choice)
+        actions.append(act_levelup)
 
     if show_character_screen:
-        actions.append({"show_character_screen": True})
+        act_show_char = Action(Actions.SHOW_CHARACTER_SCREEN,
+                               source=curr_entity, target=curr_entity)
+        actions.append(act_show_char)
 
-    # TODO: I don't like having to pass actions through like this
-    if (want_exit or fullscreen or omnivis or switch_char or map_gen
-            or graph_gen or test or msg_up or msg_down or pickup
-            or inventory_index is not None or cancel_target or take_stairs):
-        actions.append(user_in)
+    if want_exit:
+        actions.append(Action(Actions.EXIT))
 
-    if ((show_hyperedges or show_edges or show_vertices)
-            and game_map.graph is not None):
-        actions.append(user_in)
+    if fullscreen:
+        actions.append(Action(Actions.FULLSCREEN))
+
+    if omnivis:
+        actions.append(Action(Actions.OMNIVIS))
+
+    if switch_char:
+        actions.append(Action(Actions.SWITCH_CHAR, source=curr_entity))
+
+    if map_gen:
+        actions.append(Action(Actions.MAP_GEN))
+
+    if graph_gen:
+        actions.append(Action(Actions.GRAPH_GEN))
+
+    if test:
+        actions.append(Action(Actions.TEST))
+
+    if msg_up:
+        actions.append(Action(Actions.MSG_UP, source=curr_entity))
+
+    if msg_down:
+        actions.append(Action(Actions.MSG_DOWN, source=curr_entity))
+
+    if pickup:
+        actions.append(Action(Actions.PICKUP, source=curr_entity,
+                              target=curr_entity))
+
+    if cancel_target:
+        actions.append(Action(Actions.CANCEL_TARGET, source=curr_entity))
+
+    if take_stairs:
+        actions.append(Action(Actions.TAKE_STAIRS, source=curr_entity,
+                              target=curr_entity))
 
     if mouse_motion:
         x, y = mouse_motion
         if x != mouse_x or y != mouse_y:
             mouse_x = x
             mouse_y = y
-        actions.append({"mousemotion": (x, y)})
+        actions.append(Action(Actions.MOUSEMOTION, args=(x, y)))
 
-    return actions, mouse_x, mouse_y
+    return mouse_x, mouse_y

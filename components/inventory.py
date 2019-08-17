@@ -8,6 +8,7 @@ Created on Sat Jul 20 15:28:34 2019
 import tcod
 
 from game_messages import Message
+from action import Action, Actions
 
 
 class Inventory:
@@ -20,16 +21,16 @@ class Inventory:
 
         if len(self.items) >= self.capacity:
             msg_str = "You cannot carry any more, your inventory is full."
-            results.append({
-                    "item_added": None,
-                    "message": Message(msg_str, tcod.yellow)
-                     })
+            msg = Message(msg_str, tcod.yellow)
+            act_msg = Action(Actions.MESSAGE, source=self.owner, args=msg)
+            results.append(act_msg)
         else:
-            msg_str = f"You pick up the {item.name}!"
-            results.append({
-                    "item_added": item,
-                    "message": Message(msg_str, tcod.blue)
-                    })
+            msg = Message(f"You pick up the {item.name}!", tcod.blue)
+            act_msg = Action(Actions.MESSAGE, source=self.owner, args=msg)
+            results.append(act_msg)
+            act_item_add = Action(Actions.ITEM_ADDED, source=self.owner,
+                                  args=item)
+            results.append(act_item_add)
             self.items.append(item)
 
         return results
@@ -45,15 +46,20 @@ class Inventory:
         if item_component.use_function is None:
             equippable_component = item_entity.equippable
             if equippable_component:
-                results.append({"equip": [self.owner, item_entity]})
+                act_equip = Action(Actions.EQUIP, source=self.owner,
+                                   target=item_entity)
+                results.append(act_equip)
             else:
                 msg_str = "The {item_entity.name} cannot be used"
                 msg = Message(msg_str, tcod.yellow)
-                results.append({"message": msg})
+                act_msg = Action(Actions.MESSAGE, source=self.owner, args=msg)
+                results.append(act_msg)
         else:
             if (item_component.targeting and
                     not (item_component.target_x or item_component.target_y)):
-                results.append({"targeting": item_entity})
+                act_tgt = Action(Actions.TARGETING, source=self.owner,
+                                 args=item_entity)
+                results.append(act_tgt)
             else:
                 kwargs = {
                         "target_x": item_component.target_x,
@@ -63,10 +69,17 @@ class Inventory:
                 use_results = item_component.use_function(self.owner, **kwargs)
 
                 for use_result in use_results:
-                    if use_result.get("consumed"):
+                    if use_result.ident == Actions.CONSUMED:
                         self.remove_item(item_entity)
-
-                results.extend(use_results)
+                        act_con = Action(Actions.CONSUMED, source=self.owner,
+                                         target=item_entity)
+                        results.append(act_con)
+                    elif use_result.ident == Actions.ITEM_USED:
+                        act_used = Action(Actions.ITEM_USED, source=self.owner,
+                                          target=item_entity)
+                        results.append(act_used)
+                    else:
+                        results.append(use_result)
 
         return results
 
@@ -86,6 +99,10 @@ class Inventory:
         self.remove_item(item)
 
         msg = Message(f"You dropped the {item.name}", tcod.yellow)
-        results.append({"item_dropped": item, "message": msg})
+        act_msg = Action(Actions.MESSAGE, source=self.owner, args=msg)
+        results.append(act_msg)
+        act_item_drop = Action(Actions.ITEM_DROPPED, source=self.owner,
+                               target=item)
+        results.append(act_item_drop)
 
         return results

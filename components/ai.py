@@ -10,6 +10,7 @@ from random import randint
 
 from game_messages import Message
 from map_objects.geometry import Coord
+from action import Action, Actions
 
 
 class IdleMonster:
@@ -17,7 +18,8 @@ class IdleMonster:
         actions = []
         # act_msg = f"The {self.owner.name} wonders when it will get to move."
         # actions.append({"message": act_msg})
-        actions.append({"wait": 100})
+        act_wait = Action(Actions.WAIT, source=self.owner, args=100)
+        actions.append(act_wait)
         return actions
 
 
@@ -28,13 +30,19 @@ class BasicMonster:
         # if tcod.map_is_in_fov(monster.fov_map, target.x, target.y):
         if monster.fov_map.fov[target.y][target.x]:
             if monster.distance_to(target) >= 2:
-                actions.append({"move_astar": (monster, target)})
+                act_astar = Action(Actions.MOVE_ASTAR, source=monster,
+                                   target=target)
+                actions.append(act_astar)
             elif target.fighter and target.fighter.hp > 0:
-                actions.append({"melee": (monster, target)})
+                act_melee = Action(Actions.MELEE, source=monster,
+                                   target=target)
+                actions.append(act_melee)
             else:
-                actions.append({"wait": 100})
+                act_wait = Action(Actions.WAIT, source=monster, args=100)
+                actions.append(act_wait)
         else:
-            actions.append({"wait": 100})
+            act_wait = Action(Actions.WAIT, source=monster, args=100)
+            actions.append(act_wait)
         return actions
 
 
@@ -52,15 +60,20 @@ class ConfusedMonster:
 
             if random_x != self.owner.x and random_y != self.owner.y:
                 target = Coord(random_x, random_y)
-                actions.append({"move_astar": (self.owner, target)})
+                act_astar = Action(Actions.MOVE_ASTAR, source=self.owner,
+                                   target=target)
+                actions.append(act_astar)
             else:
-                actions.append({"wait": 100})
+                act_wait = Action(Actions.WAIT, source=self.owner, args=100)
+                actions.append(act_wait)
 
             self.number_of_turns -= 1
 
         else:
             self.owner.ai = self.previous_ai
             msg_str = f"The {self.owner.name} is no longer confused!"
-            actions.append({"message": Message(msg_str, tcod.red)})
+            msg = Message(msg_str, tcod.red)
+            act_msg = Action(Actions.MESSAGE, source=self.owner, args=msg)
+            actions.append(act_msg)
 
         return actions
